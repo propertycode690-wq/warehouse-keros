@@ -1,0 +1,161 @@
+import { eq, ilike, or, count, and, desc } from 'drizzle-orm';
+import { db } from '../../db/index.js';
+import { shipments, NewShipment, warehouseReceipts, billsOfLading } from '../../db/schema/index.js';
+import { ShipmentFilterParams } from './shipments.types.js';
+
+export class ShipmentsRepository {
+  async findMany(filters: ShipmentFilterParams) {
+    const conditions = [];
+
+    if (filters.status && filters.status !== 'All') {
+      const st = filters.status.toLowerCase();
+      if (st.includes('deliver')) {
+        conditions.push(or(eq(shipments.status, 'Delivered'), ilike(shipments.status, '%deliver%')));
+      } else if (st.includes('transit')) {
+        conditions.push(ilike(shipments.status, '%transit%'));
+      } else if (st.includes('loaded')) {
+        conditions.push(ilike(shipments.status, '%loaded%'));
+      } else {
+        conditions.push(ilike(shipments.status, `%${filters.status}%`));
+      }
+    }
+    if (filters.destinationCode && filters.destinationCode !== 'All') {
+      conditions.push(eq(shipments.destinationCode, filters.destinationCode));
+    }
+    if (filters.agentId && filters.agentId !== 'All') {
+      conditions.push(eq(shipments.agentId, filters.agentId));
+    }
+    if (filters.search) {
+      conditions.push(
+        or(
+          ilike(shipments.shipmentNumber, `%${filters.search}%`),
+          ilike(shipments.trackingNumber, `%${filters.search}%`),
+          ilike(shipments.containerNumber, `%${filters.search}%`),
+          ilike(shipments.vesselName, `%${filters.search}%`),
+          ilike(shipments.billOfLadingNumber, `%${filters.search}%`),
+          ilike(shipments.destinationPort, `%${filters.search}%`)
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const data = await db
+      .select()
+      .from(shipments)
+      .where(whereClause)
+      .orderBy(desc(shipments.createdAt))
+      .limit(filters.limit)
+      .offset(filters.offset);
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(shipments)
+      .where(whereClause);
+
+    return { data, total: Number(total) };
+  }
+
+  async findByIdOrNumber(idOrNumber: string) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrNumber);
+    const whereCondition = isUuid
+      ? or(eq(shipments.id, idOrNumber), eq(shipments.shipmentNumber, idOrNumber))
+      : eq(shipments.shipmentNumber, idOrNumber);
+
+    const result = await db
+      .select()
+      .from(shipments)
+      .where(whereCondition)
+      .limit(1);
+
+    const shipment = result[0] || null;
+    if (!shipment) return null;
+
+    // Fetch linked warehouse receipts from database
+    const linkedReceipts = await db
+      .select()
+      .from(warehouseReceipts)
+      .where(
+        or(
+          eq(warehouseReceipts.assignedShipmentId, shipment.id),
+          eq(warehouseReceipts.assignedShipmentId, shipment.shipmentNumber)
+        )
+      );
+
+    // Fetch linked bill of lading from database
+    const blConditions = [];
+    if (shipment.id) blConditions.push(eq(billsOfLading.shipmentId, shipment.id));
+    if (shipment.shipmentNumber) blConditions.push(eq(billsOfLading.shipmentNumber, shipment.shipmentNumber));
+    if (shipment.billOfLadingNumber) blConditions.push(eq(billsOfLading.blNumber, shipment.billOfLadingNumber));
+    const isBlUuid = shipment.billOfLadingId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shipment.billOfLadingId);
+    if (isBlUuid) blConditions.push(eq(billsOfLading.id, shipment.billOfLadingId!));
+
+    let linkedBL = null;
+    if (blConditions.length > 0) {
+      const blResult = await db
+        .select()
+        .from(billsOfLading)
+        .where(or(...blConditions))
+        .limit(1);
+      linkedBL = blResult[0] || null;
+    }
+
+    return {
+      ...shipment,
+      linkedReceipts: linkedReceipts.map(r => ({
+        ...r,
+        customer: r.customerName,
+        customerName: r.customerName,
+        cft: r.totalCft,
+        cbm: r.totalCbm,
+      })),
+      linkedBL,
+    };
+  }
+
+  async countTotal(): Promise<number> {
+    const [{ total }] = await db.select({ total: count() }).from(shipments);
+    return Number(total);
+  }
+
+  async create(data: NewShipment) {
+    const [created] = await db
+      .insert(shipments)
+      .values(data)
+      .returning();
+
+    return created;
+  }
+
+  async update(id: string, data: Partial<NewShipment>) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const whereCondition = isUuid
+      ? or(eq(shipments.id, id), eq(shipments.shipmentNumber, id))
+      : eq(shipments.shipmentNumber, id);
+
+    const [updated] = await db
+      .update(shipments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(whereCondition)
+      .returning();
+
+    return updated || null;
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const whereCondition = isUuid
+      ? or(eq(shipments.id, id), eq(shipments.shipmentNumber, id))
+      : eq(shipments.shipmentNumber, id);
+
+    const [deleted] = await db
+      .delete(shipments)
+      .where(whereCondition)
+      .returning();
+
+    return !!deleted;
+  }
+}
+
+export const shipmentsRepository = new ShipmentsRepository();
+
