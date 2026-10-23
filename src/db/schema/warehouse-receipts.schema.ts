@@ -28,7 +28,9 @@ export const warehouseReceipts = pgTable('warehouse_receipts', {
   
   customerId: uuid('customer_id').references(() => customers.id),
   customerName: text('customer_name').notNull(),
+  shipperId: uuid('shipper_id').references(() => customers.id),
   shipper: text('shipper'),
+  consigneeId: uuid('consignee_id').references(() => customers.id),
   consignee: text('consignee'),
   
   agentId: uuid('agent_id').references(() => agents.id),
@@ -55,7 +57,7 @@ export const warehouseReceipts = pgTable('warehouse_receipts', {
   totalCbm: numeric('total_cbm', { precision: 10, scale: 2 }),
   
   warehouseLocation: text('warehouse_location').default('CFS Miami'),
-  status: text('status').default('Ready for Consolidation').notNull(),
+  status: text('status').default('Received').notNull(),
   hazardous: boolean('hazardous').default(false).notNull(),
   fragile: boolean('fragile').default(false).notNull(),
   notes: text('notes'),

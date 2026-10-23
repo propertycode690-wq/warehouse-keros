@@ -24,12 +24,15 @@ export const createBillOfLadingSchema = z.object({
   shipmentId: z.string().optional(),
   shipmentNumber: z.string().optional(),
   consolidationId: z.string().nullish(),
+  consolidationNumber: z.string().nullish(),
   houseBillIds: z.array(z.string()).optional().default([]),
 
   createdDate: z.string().optional(),
   issueDate: z.string().optional(),
 
+  shipperId: z.string().nullish(),
   shipper: z.any().default({ name: 'KERS Global Freight Forwarding Inc.', address: '8200 NW 33rd Street, Miami, FL 33122 USA' }),
+  consigneeId: z.string().nullish(),
   consignee: z.any().default({ name: 'General Consignee', address: '' }),
   notifyParty: z.any().optional(),
 
@@ -37,12 +40,10 @@ export const createBillOfLadingSchema = z.object({
   agentName: z.string().optional(),
 
   preCarriageBy: z.string().optional(),
-  placeOfReceipt: z.string().optional(),
-  oceanVessel: z.string().optional().default('M/V Caribbean Voyager'),
-  voyageNumber: z.string().optional().default('VOY-2026-088'),
-  carrier: z.string().optional().default('Tropical Shipping'),
+  oceanVessel: z.string().optional().default(''),
+  carrier: z.string().optional().default(''),
   portOfLoading: z.string().default('Port of Miami, USA (USMIA)'),
-  portOfDischarge: z.string().default('Nassau Port Terminal (BSNAS)'),
+  portOfDischarge: z.string().default(''),
   placeOfDelivery: z.string().optional(),
 
   containerNumber: z.string().optional(),

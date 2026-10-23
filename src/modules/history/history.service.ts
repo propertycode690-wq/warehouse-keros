@@ -15,7 +15,7 @@ export class HistoryService {
    * Helper to compute transit days between ETD and ETA
    */
   private calculateTransitDays(etd?: string | null, eta?: string | null): number {
-    if (!etd || !eta) return 4; // default maritime ocean voyage duration in region
+    if (!etd || !eta) return 4; // default maritime transit duration in region
     try {
       const d1 = new Date(etd).getTime();
       const d2 = new Date(eta).getTime();
@@ -129,20 +129,19 @@ export class HistoryService {
       {
         stageNumber: 4,
         key: 'transit',
-        name: 'Ocean Transit & Voyage',
+        name: 'Ocean Transit',
         subtitle: 'Vessel Underway to Destination',
         status: getStageStatus(4),
         date: s.etd || 'Scheduled Departure',
         location: `At Sea — ${s.vesselName || 'Ocean Carrier'}`,
         details: {
           vessel: s.vesselName || 'M/V Tropical Express',
-          voyage: s.voyageNumber || 'VOY-2026-01',
           carrier: s.carrier || 'Tropical Shipping',
           etd: s.etd,
           eta: s.eta,
           transitDays: `${estimatedTransitDays} Days`,
         },
-        calculationNotes: `Voyage ${s.voyageNumber || 'active'} en route; estimated ocean sailing time: ${estimatedTransitDays} days.`,
+        calculationNotes: `Shipment en route on vessel ${s.vesselName || 'assigned'}; estimated ocean transit time: ${estimatedTransitDays} days.`,
       },
       {
         stageNumber: 5,
@@ -153,11 +152,11 @@ export class HistoryService {
         date: s.eta || 'Pending Arrival',
         location: s.destinationPort || s.destination,
         details: {
-          port: s.destinationPort || 'NAS',
+          port: s.destinationPort || '',
           agent: s.agentName || 'Destination Port Agent',
           manifest: s.manifestNumber || 'MNF-VI-2026',
         },
-        calculationNotes: `Vessel discharging cargo at ${s.destinationCode || 'NAS'} terminal; Customs manifest validated.`,
+        calculationNotes: `Vessel discharging cargo at ${s.destinationCode || 'destination'} terminal; Customs manifest validated.`,
       },
       {
         stageNumber: 6,
@@ -188,12 +187,11 @@ export class HistoryService {
       currentStageNumber,
       origin: s.origin || 'Miami, FL (USMIA)',
       destination: s.destination || s.destinationPort,
-      destinationPort: s.destinationPort || 'NAS - Nassau Container Port',
-      destinationCode: s.destinationCode || 'NAS',
+      destinationPort: s.destinationPort || '',
+      destinationCode: s.destinationCode || '',
       agentName: s.agentName,
       carrier: s.carrier,
       vesselName: s.vesselName,
-      voyageNumber: s.voyageNumber,
       containerNumber: s.containerNumber,
       containerType: s.containerType,
       sealNumber: s.sealNumber,

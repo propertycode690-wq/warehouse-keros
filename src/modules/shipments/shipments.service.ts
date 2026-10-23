@@ -39,7 +39,7 @@ export class ShipmentsService {
       : `TRK-VI-${Math.floor(100000 + Math.random() * 900000)}`;
 
     const createdDate = input.createdDate || new Date().toISOString().split('T')[0];
-    const destinationPort = input.destinationPort || 'NAS - Nassau Container Port';
+    const destinationPort = input.destinationPort || '';
     const destination = input.destination || destinationPort;
     const origin = input.origin || 'Port of Miami (USMIA)';
 
@@ -84,7 +84,7 @@ export class ShipmentsService {
             status: input.status === 'In Transit' ? 'Active' : input.status?.includes('Deliver') ? 'Completed' : 'Pending',
             date: input.etd || createdDate,
             time: '06:00 PM',
-            location: `${input.vesselName || 'Ocean Vessel'} (Voyage ${input.voyageNumber || 'N/A'})`,
+            location: `${input.vesselName || 'Ocean Vessel'}`,
             notes: `Ocean freight vessel en route to ${destinationPort}.`,
           },
           {
@@ -116,12 +116,11 @@ export class ShipmentsService {
       origin,
       destination,
       destinationPort,
-      destinationCode: input.destinationCode || 'NAS',
+      destinationCode: input.destinationCode || '',
       agentId: validAgentId,
       agentName: input.agentName || null,
       vesselName: input.vesselName || null,
-      voyageNumber: input.voyageNumber || null,
-      carrier: input.carrier || 'Tropical Shipping',
+      carrier: input.carrier || '',
       containerNumber: input.containerNumber || null,
       containerType: input.containerType || "40' Standard Dry",
       sealNumber: input.sealNumber || null,
@@ -157,6 +156,20 @@ export class ShipmentsService {
           .where(cond)
           .catch(() => {});
       }
+    }
+
+    // Link consolidation in database if provided
+    if (created && input.consolidationId) {
+      const isConsolUuid = UUID_REGEX.test(input.consolidationId);
+      const cond = isConsolUuid
+        ? or(eq(consolidations.id, input.consolidationId), eq(consolidations.consolidationNumber, input.consolidationId))
+        : eq(consolidations.consolidationNumber, input.consolidationId);
+
+      await db
+        .update(consolidations)
+        .set({ assignedShipmentId: created.id, updatedAt: new Date() })
+        .where(cond)
+        .catch(() => {});
     }
 
     // Insert tracking events

@@ -91,10 +91,12 @@ export class WarehouseService {
 
     const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     const validCustomerId = input.customerId && UUID_REGEX.test(input.customerId) ? input.customerId : null;
+    const validShipperId = (input as any).shipperId && UUID_REGEX.test((input as any).shipperId) ? (input as any).shipperId : null;
+    const validConsigneeId = (input as any).consigneeId && UUID_REGEX.test((input as any).consigneeId) ? (input as any).consigneeId : null;
     const validAgentId = input.agentId && UUID_REGEX.test(input.agentId) ? input.agentId : null;
 
     const totalWeightKg = Number((totalWeightLbs * 0.453592).toFixed(1));
-    const destCode = input.destinationCode || (input.destinationPort ? (input.destinationPort.includes(' - ') ? input.destinationPort.split(' - ')[0].trim() : input.destinationPort.slice(0, 3).toUpperCase()) : 'NAS');
+    const destCode = input.destinationCode || (input.destinationPort ? (input.destinationPort.includes(' - ') ? input.destinationPort.split(' - ')[0].trim() : input.destinationPort.slice(0, 3).toUpperCase()) : '');
     const customerDisplayName = input.customerName || (input as any).customer || 'General Cargo';
 
     const created = await this.repo.create({
@@ -104,11 +106,13 @@ export class WarehouseService {
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       customerId: validCustomerId,
       customerName: customerDisplayName,
+      shipperId: validShipperId,
       shipper: input.shipper || '',
+      consigneeId: validConsigneeId,
       consignee: input.consignee || '',
       agentId: validAgentId,
       agentName: input.agentName || '',
-      destinationPort: input.destinationPort || 'NAS - Nassau Container Port',
+      destinationPort: input.destinationPort || '',
       destinationCode: destCode,
       cargoDescription: input.cargoDescription || 'General Cargo',
       packageCount: packages.length,
@@ -123,7 +127,7 @@ export class WarehouseService {
       totalCft: String(totalCft.toFixed(2)),
       totalCbm: String(totalCbm.toFixed(2)),
       warehouseLocation: input.warehouseLocation || 'Bay A-1 (CFS Staging)',
-      status: input.status || 'Ready for Consolidation',
+      status: input.status || 'Received',
       hazardous: input.hazardous ?? false,
       fragile: input.fragile ?? false,
       notes: input.notes || '',
