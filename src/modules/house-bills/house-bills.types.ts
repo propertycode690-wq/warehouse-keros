@@ -34,9 +34,9 @@ export interface CreateHouseBillInput {
   status?: string;
   createdDate?: string;
   issueDate?: string;
-  assignedConsolidationId?: string;
-  assignedMasterBLId?: string;
-  assignedShipmentId?: string;
+  assignedConsolidationId?: string | null;
+  assignedMasterBLId?: string | null;
+  assignedShipmentId?: string | null;
   freightCharges?: any;
   notes?: string;
 }
